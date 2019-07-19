@@ -1,0 +1,105 @@
+# Чтобы установить на чистый сервер Docker, необходимо
+- ip адрес сервера
+- логин
+- пароль
+
+Пользователь должен быть рут или иметь безпарольный sudo доступ
+
+Скопировать открытый ключ на сервер, при запросе - ввести пароль от сервера
+`ssh-copy-id {{username@remote_host}}`
+
+
+`docker-machine create \
+                    --driver generic \
+                    --generic-ip-address={{1.1.1.1}} \
+                    --generic-ssh-key ~/.ssh/id_rsa {{project-name}}`
+
+Теперь подключится можно по
+`docker-machine ssh project-name`
+
+Посмотреть доступы Docker
+docker-machine config {{project-name}}
+
+Докер демон доступен на порту 2376
+Сертификаты для TLS находятся по пути
+tlscacert ~/.docker/machine/machines/{{project-name}}/ca.pem
+tlscert ~/.docker/machine/machines/{{project-name}}/cert.pem
+tlskey ~/.docker/machine/machines/{{project-name}}/key.pem
+
+Добавить доступы в portainer entrypoint
+https://port.git.artjoker.ua
+
+
+Чтобы команды докер с локальной машины выполнялись на удаленной машине:
+Задает окружением удаленную машину
+eval "$(docker-machine env {{project-name}})"
+
+docker-compose up поднимет контейнеры на удаленной docker-machine
+
+Для создания инстанса в gcloud
+Установить gcloud tools
+https://cloud.google.com/sdk/docs/quickstart-debian-ubuntu
+
+Авторизироваться и выбрать проект
+`gcloud init`
+
+Default zone - 14 europe-west4-a, Netherlands
+
+gcloud compute addresses create rabbit-silicone --region=europe-west4
+
+gcloud compute --project=rabbit-silicone instances create rabbit-silicone \
+                                                                            --zone=europe-west4-a \
+                                                                            --machine-type=n1-standard-1 \
+                                                                            --address=rabbit-silicone \
+                                                                            --subnet=default \
+                                                                            --network-tier=PREMIUM \
+                                                                            --maintenance-policy=MIGRATE \
+                                                                            --tags=http-server,https-server \
+                                                                            --image=ubuntu-minimal-1804-bionic-v20181030 \
+                                                                            --image-project=ubuntu-os-cloud \
+                                                                            --boot-disk-size=50GB \
+                                                                            --boot-disk-type=pd-standard \
+                                                                            --boot-disk-device-name=rabbit-silicone
+
+gcloud compute --project=rabbit-silicone firewall-rules create default-allow-http \
+                                                                                    --direction=INGRESS \
+                                                                                    --priority=1000 \
+                                                                                    --network=default \
+                                                                                    --action=ALLOW \
+                                                                                    --rules=tcp:80 \
+                                                                                    --source-ranges=0.0.0.0/0 \
+                                                                                    --target-tags=http-server
+
+gcloud compute --project=rabbit-silicone firewall-rules create default-allow-https \
+                                                                                    --direction=INGRESS \
+                                                                                    --priority=1000 \
+                                                                                    --network=default \
+                                                                                    --action=ALLOW \
+                                                                                    --rules=tcp:443 \
+                                                                                    --source-ranges=0.0.0.0/0 \
+                                                                                    --target-tags=https-server
+
+gcloud compute --project=rabbit-silicone firewall-rules create allow-docker \
+                                                                                --direction=INGRESS \
+                                                                                --priority=1000 \
+                                                                                --network=default \
+                                                                                --action=ALLOW \
+                                                                                --rules=tcp:2376 \
+                                                                                --source-ranges=0.0.0.0/0
+
+
+Добавить свой ключ ssh
+https://console.cloud.google.com/compute/metadata/sshKeys
+
+
+Показать инстансы в проекте
+`gcloud compute instances list`
+
+docker-machine create \
+                      --driver generic \
+                      --generic-ip-address=35.204.25.200 \
+                      --generic-ssh-key ~/.ssh/rabbit-silicone_dev \
+                      --generic-ssh-user rabbit-silicone \
+                       rabbit-silicone
+
+Добавить в https://port.git.artjoker.ua/#/endpoints
